@@ -1,0 +1,19 @@
+// Coffee Shop POS — Prisma schema
+// Step 1: minimal scaffold so `prisma generate` works.
+// The full domain models are added in Step 2.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// Placeholder model so the schema is valid. Replaced in Step 2.
+model HealthCheck {
+  id        Int      @id @default(autoincrement())
+  status    String   @default("ok")
+  createdAt DateTime @default(now())
+}

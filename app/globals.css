@@ -1,0 +1,91 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Light theme — cream/coffee palette */
+    --background: 36 38% 97%;        /* cream-50 */
+    --foreground: 25 35% 12%;        /* coffee-900 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 25 35% 12%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 25 35% 12%;
+
+    --primary: 28 39% 32%;           /* coffee-700 */
+    --primary-foreground: 36 50% 97%;
+
+    --secondary: 36 60% 92%;         /* cream-100 */
+    --secondary-foreground: 25 35% 18%;
+
+    --muted: 36 30% 94%;
+    --muted-foreground: 25 12% 40%;
+
+    --accent: 32 40% 70%;            /* coffee-300 */
+    --accent-foreground: 25 35% 15%;
+
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 32 22% 86%;
+    --input: 32 22% 86%;
+    --ring: 28 39% 32%;
+
+    --radius: 0.75rem;
+  }
+
+  .dark {
+    --background: 25 25% 8%;
+    --foreground: 36 30% 94%;
+
+    --card: 25 22% 12%;
+    --card-foreground: 36 30% 94%;
+
+    --popover: 25 22% 12%;
+    --popover-foreground: 36 30% 94%;
+
+    --primary: 32 40% 70%;
+    --primary-foreground: 25 35% 12%;
+
+    --secondary: 25 18% 18%;
+    --secondary-foreground: 36 30% 94%;
+
+    --muted: 25 18% 18%;
+    --muted-foreground: 36 12% 65%;
+
+    --accent: 25 18% 22%;
+    --accent-foreground: 36 30% 94%;
+
+    --destructive: 0 62% 45%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 25 15% 22%;
+    --input: 25 15% 22%;
+    --ring: 32 40% 70%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  html {
+    direction: rtl;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+  /* Tabular numbers for prices/quantities */
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+@layer utilities {
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+}
