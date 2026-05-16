@@ -1,6 +1,6 @@
-// Coffee Shop POS — Prisma schema
-// Step 1: minimal scaffold so `prisma generate` works.
-// The full domain models are added in Step 2.
+// Coffee Shop POS & Management System — Full Prisma schema
+// Single source of truth for all domain models.
+// Provider: sqlite (dev). Designed to migrate cleanly to postgresql later.
 
 generator client {
   provider = "prisma-client-js"
@@ -11,9 +11,368 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// Placeholder model so the schema is valid. Replaced in Step 2.
-model HealthCheck {
-  id        Int      @id @default(autoincrement())
-  status    String   @default("ok")
+// ─────────────────────────────────────────────────────────────────────────────
+// AUTH (NextAuth-compatible + role-based access)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model User {
+  id            String   @id @default(cuid())
+  email         String   @unique
+  name          String
+  passwordHash  String
+  role          String   @default("barista") // "admin" | "manager" | "barista"
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  ordersCreated Order[]  @relation("OrderCashier")
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MENU & RECIPES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Product {
+  id        String   @id @default(cuid())
+  nameAr    String
+  nameEn    String
+  price     Float
+  category  String   // "hot_coffee" | "iced_coffee" | "tea" | "juice" | "pastry"
+  image     String?
+  active    Boolean  @default(true)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  recipe     Recipe?
+  orderItems OrderItem[]
+
+  @@index([category, active])
+}
+
+model Recipe {
+  id        String       @id @default(cuid())
+  productId String       @unique
+  product   Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  items     RecipeItem[]
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+model RecipeItem {
+  id              String        @id @default(cuid())
+  recipeId        String
+  recipe          Recipe        @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id])
+  quantity        Float         // in the inventory item's base unit
+
+  @@unique([recipeId, inventoryItemId])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// INVENTORY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model InventoryItem {
+  id                String   @id @default(cuid())
+  name              String
+  unit              String   // "g" | "ml" | "piece"
+  quantity          Float    @default(0)
+  unitCost          Float    @default(0)   // weighted-average cost per base unit
+  reorderThreshold  Float    @default(0)
+  supplierId        String?
+  supplier          Supplier? @relation(fields: [supplierId], references: [id])
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  recipeItems  RecipeItem[]
+  logs         InventoryLog[]
+  invoiceItems SupplierInvoiceItem[]
+
+  @@index([name])
+}
+
+model InventoryLog {
+  id              String        @id @default(cuid())
+  inventoryItemId String
+  inventoryItem   InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  type            String        // "in" | "out" | "adjust"
+  quantityDelta   Float          // signed; positive for in, negative for out
+  reason          String         // "restock" | "order" | "waste" | "manual" | "invoice"
+  reference       String?        // e.g. order id, invoice id
+  unitCost        Float?         // cost per unit at time of change (for "in" types)
+  balanceAfter    Float          // resulting quantity after this change
+  createdAt       DateTime       @default(now())
+
+  @@index([inventoryItemId, createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// CUSTOMERS & LOYALTY
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Customer {
+  id               String   @id @default(cuid())
+  name             String
+  phone            String   @unique
+  points           Int      @default(0)
+  totalSpent       Float    @default(0)
+  visits           Int      @default(0)
+  lastVisitAt      DateTime?
+  passSerialNumber String?  @unique
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([phone])
+}
+
+model LoyaltyConfig {
+  id                  String   @id @default("singleton")
+  pointsPerUnit       Float    @default(10)    // points per 1 OMR
+  redemptionThreshold Int      @default(100)   // points needed for a free drink
+  freeDrinkValue      Float    @default(1.5)   // approx value in OMR
+  active              Boolean  @default(true)
+  buyXGetYEnabled     Boolean  @default(false)
+  buyX                Int      @default(5)
+  getY                Int      @default(1)
+  updatedAt           DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ORDERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Order {
+  id               String      @id @default(cuid())
+  orderNumber      Int         @unique
+  customerId       String?
+  customer         Customer?   @relation(fields: [customerId], references: [id])
+  cashierId        String?
+  cashier          User?       @relation("OrderCashier", fields: [cashierId], references: [id])
+  status           String      @default("pending")   // pending | preparing | completed | cancelled
+  paymentMethod    String?     // cash | thawani | tap
+  paymentStatus    String      @default("unpaid")    // unpaid | pending | paid | failed | refunded
+  paymentReference String?
+  paidAt           DateTime?
+  subtotal         Float       @default(0)
+  discount         Float       @default(0)
+  total            Float       @default(0)
+  pointsEarned     Int         @default(0)
+  pointsRedeemed   Int         @default(0)
+  notes            String?
+  createdAt        DateTime    @default(now())
+  completedAt      DateTime?
+  updatedAt        DateTime    @updatedAt
+
+  items OrderItem[]
+
+  @@index([status, createdAt])
+  @@index([createdAt])
+}
+
+model OrderItem {
+  id          String   @id @default(cuid())
+  orderId     String
+  order       Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId   String
+  product     Product  @relation(fields: [productId], references: [id])
+  quantity    Int
+  unitPrice   Float    // price at time of order
+  lineTotal   Float
+  notes       String?  // e.g. "no sugar", "oat milk"
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// SETTINGS (shop profile + printer + payment config)
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Settings {
+  id                     String   @id @default("singleton")
+  shopName               String   @default("مقهاي")
+  shopNameEn             String?
+  shopLogo               String?
+  address                String?
+  phone                  String?
+  vatNumber              String?
+  receiptFooter          String   @default("شكراً لزيارتكم")
+  // Printer
+  printerType            String   @default("browser")  // network | usb | browser
+  printerAddress         String?
+  kitchenPrinterAddress  String?
+  autoPrint              Boolean  @default(true)
+  printCopies            Int      @default(1)
+  // Order counter
+  nextOrderNumber        Int      @default(1001)
+  updatedAt              DateTime @updatedAt
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNTING — SUPPLIERS
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Supplier {
+  id            String   @id @default(cuid())
+  name          String
+  phone         String?
+  email         String?
+  address       String?
+  contactPerson String?
+  paymentTerms  String   @default("cash") // cash | net_30 | net_60
+  notes         String?
+  active        Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  inventoryItems InventoryItem[]
+  invoices       SupplierInvoice[]
+}
+
+model SupplierInvoice {
+  id            String    @id @default(cuid())
+  supplierId    String
+  supplier      Supplier  @relation(fields: [supplierId], references: [id])
+  invoiceNumber String
+  issueDate     DateTime
+  dueDate       DateTime?
+  totalAmount   Float     @default(0)
+  paidAmount    Float     @default(0)
+  status        String    @default("unpaid") // unpaid | partial | paid | overdue
+  attachmentUrl String?
+  notes         String?
+  confirmed     Boolean   @default(false)    // confirming triggers stock increment
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  items    SupplierInvoiceItem[]
+  payments SupplierPayment[]
+
+  @@index([supplierId, status])
+  @@index([dueDate])
+}
+
+model SupplierInvoiceItem {
+  id              String          @id @default(cuid())
+  invoiceId       String
+  invoice         SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  inventoryItemId String
+  inventoryItem   InventoryItem   @relation(fields: [inventoryItemId], references: [id])
+  quantity        Float
+  unitPrice       Float
+  lineTotal       Float
+}
+
+model SupplierPayment {
+  id          String          @id @default(cuid())
+  invoiceId   String
+  invoice     SupplierInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  amount      Float
+  paymentDate DateTime        @default(now())
+  method      String          // cash | bank | cheque
+  reference   String?
+  notes       String?
+  createdAt   DateTime        @default(now())
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNTING — EMPLOYEES & PAYROLL
+// ─────────────────────────────────────────────────────────────────────────────
+
+model Employee {
+  id           String    @id @default(cuid())
+  name         String
+  phone        String?
+  role         String    // barista | cashier | manager
+  nationalId   String?
+  salary       Float     @default(0)  // base monthly salary
+  startDate    DateTime
+  endDate      DateTime?
+  bankAccount  String?
+  notes        String?
+  active       Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  payroll PayrollEntry[]
+}
+
+model PayrollEntry {
+  id          String   @id @default(cuid())
+  employeeId  String
+  employee    Employee @relation(fields: [employeeId], references: [id])
+  month       Int      // 1..12
+  year        Int
+  baseSalary  Float
+  bonus       Float    @default(0)
+  deductions  Float    @default(0)
+  overtime    Float    @default(0)  // currency amount for overtime
+  netPay      Float
+  paidDate    DateTime?
+  status      String   @default("pending") // pending | paid
+  notes       String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([employeeId, month, year])
+  @@index([year, month])
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ACCOUNTING — EXPENSES
+// ─────────────────────────────────────────────────────────────────────────────
+
+model ExpenseCategory {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  type      String   // rent | utilities | salaries | ingredients | marketing |
+                    // maintenance | transport | government | banking | other
+  color     String   @default("#9C7A4E")
+  icon      String   @default("📦")
+  systemKey String?  @unique // for auto-populated categories (salaries, ingredients)
+  createdAt DateTime @default(now())
+
+  expenses          Expense[]
+  recurringExpenses RecurringExpense[]
+}
+
+model Expense {
+  id                  String          @id @default(cuid())
+  categoryId          String
+  category            ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount              Float
+  expenseDate         DateTime
+  description         String
+  paymentMethod       String          @default("cash") // cash | bank | card | cheque
+  attachmentUrl       String?
+  isRecurring         Boolean         @default(false)
+  recurrenceFrequency String?         // monthly | weekly | yearly
+  nextDueDate         DateTime?
+  recurringTemplateId String?
+  recurringTemplate   RecurringExpense? @relation(fields: [recurringTemplateId], references: [id])
+  source              String?         // null | "payroll" | "supplier_invoice" | "recurring"
+  sourceId            String?         // e.g. PayrollEntry.id, SupplierInvoice.id
+  notes               String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([expenseDate])
+  @@index([categoryId, expenseDate])
+}
+
+model RecurringExpense {
+  id          String          @id @default(cuid())
+  categoryId  String
+  category    ExpenseCategory @relation(fields: [categoryId], references: [id])
+  amount      Float
+  description String
+  frequency   String          // monthly | weekly | yearly
+  startDate   DateTime
+  nextDueDate DateTime
+  active      Boolean         @default(true)
+  notes       String?
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  generatedExpenses Expense[]
 }
