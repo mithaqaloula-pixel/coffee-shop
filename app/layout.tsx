@@ -10,8 +10,8 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: "نظام نقاط البيع - المقهى",
-  description: "نظام إدارة المقهى ونقاط البيع",
+  title: "m4 coffee — نظام نقاط البيع",
+  description: "نظام إدارة m4 coffee — الطلبات والمخزون والولاء والمحاسبة",
 };
 
 export default function RootLayout({
