@@ -18,24 +18,27 @@ const config: Config = {
         sans: ["var(--font-tajawal)", "system-ui", "sans-serif"],
       },
       colors: {
-        // Coffee-shop palette: warm browns + cream
-        coffee: {
-          50: "#FAF6F1",
-          100: "#F2E9DC",
-          200: "#E5D2B8",
-          300: "#D2B48C",
-          400: "#B8956A",
-          500: "#9C7A4E",
-          600: "#7A5C38",
-          700: "#5C4528",
-          800: "#3E2E1B",
-          900: "#231810",
+        // m4 coffee — luxury forest green palette
+        brand: {
+          50:  "#f0f7f2",
+          100: "#dcefe4",
+          200: "#b8dec8",
+          300: "#8ac4a5",
+          400: "#55a67d",
+          500: "#318a5c",
+          600: "#226f48",
+          700: "#1B5E3A",
+          800: "#154830",
+          900: "#0e3022",
+          950: "#071a12",
         },
-        cream: {
-          50: "#FFFCF7",
-          100: "#FBF5EA",
-          200: "#F5EAD2",
-          300: "#EFDEB9",
+        // Warm off-white surface palette
+        surface: {
+          50:  "#FDFAF6",
+          100: "#F9F5EF",
+          200: "#F2EDE4",
+          300: "#E8E1D6",
+          400: "#D4C9B8",
         },
         background: "hsl(var(--background))",
         foreground: "hsl(var(--foreground))",

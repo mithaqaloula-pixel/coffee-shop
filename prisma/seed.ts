@@ -48,8 +48,8 @@ async function main() {
   await prisma.settings.create({
     data: {
       id: "singleton",
-      shopName: "ركن البن",
-      shopNameEn: "Coffee Corner",
+      shopName: "m4 coffee",
+      shopNameEn: "m4 coffee",
       address: "مسقط، سلطنة عُمان",
       phone: "+96891234567",
       vatNumber: "OM1234567890",
