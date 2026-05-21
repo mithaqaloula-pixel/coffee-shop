@@ -1,51 +1,113 @@
-# Coffee Shop POS & Management System
+# CampusWash — كامبس واش
 
-نظام إدارة مقهى متكامل — نقاط البيع، المخزون، الولاء، الطباعة الحرارية، والمحاسبة.
+تطبيق غسيل سيارات متنقل لطلاب الجامعة. الطالب يطلب الغسيل وهو في المحاضرة، والعامل ينفذ الطلب ويوصله لموقف السيارة.
 
-Built with **Next.js 14 (App Router) + TypeScript + Tailwind CSS + shadcn/ui + Prisma + SQLite**.
-Fully RTL Arabic UI with a warm coffee-shop aesthetic (brown/cream palette).
+> **غسيل سيارتك وانت في المحاضرة**
 
-## Build progress
+مبني باستخدام **Next.js 14 (App Router) + TypeScript + Tailwind CSS (RTL) + shadcn/ui + Prisma + PostgreSQL + NextAuth.js**.
+واجهة عربية بالكامل (RTL) بخط Tajawal وألوان أزرق سماوي (#0EA5E9).
 
-The system is being built in 12 sequential steps. Each step is reviewed before moving on.
+## مراحل البناء
 
-- [x] **1. Project setup** — Next.js, Tailwind, shadcn/ui primitives, Prisma init, RTL + Tajawal font, coffee palette
-- [ ] 2. Full Prisma schema + migrate + seed
-- [ ] 3. Inventory CRUD
-- [ ] 4. Menu & Recipes (auto cost calculation)
-- [ ] 5. Cashier / New Order screen
-- [ ] 6. Payment modal (Thawani + Tap)
-- [ ] 7. Thermal receipt printing
-- [ ] 8. Preparation queue + kitchen tickets
-- [ ] 9. Loyalty system + `.pkpass` cards
-- [ ] 10. Accounting module (suppliers, invoices, payroll, expenses, P&L)
-- [ ] 11. Settings (printer, payments, shop profile)
-- [ ] 12. Dashboard + operational reports
+- [x] **المرحلة 1** — إعداد المشروع + قاعدة البيانات + تسجيل الدخول (OTP) + التصميم العام
+- [ ] المرحلة 2 — صفحات طلب الغسيل للطالب
+- [ ] المرحلة 3 — لوحة العامل وإدارة الطلبات
+- [ ] المرحلة 4 — الدفع والتقييمات والإشعارات
 
-## Getting started
+## المتطلبات
+
+- Node.js 18.18+ (مُختبَر على Node 22)
+- PostgreSQL 14+ — أو Docker لتشغيلها محلياً
+
+## التشغيل خطوة بخطوة
 
 ```bash
+# 1) ثبّت الحزم
 npm install
+
+# 2) جهّز متغيرات البيئة
 cp .env.example .env
-npm run db:push
-npm run db:seed       # available from step 2
+#    عدّل NEXTAUTH_SECRET (يمكن توليده عبر: openssl rand -base64 32)
+
+# 3) شغّل قاعدة بيانات PostgreSQL محلياً (اختياري — عبر Docker)
+docker compose up -d
+
+# 4) أنشئ الجداول (migration)
+npx prisma migrate dev
+
+# 5) عبّئ البيانات التجريبية (مواقف + خدمات + حسابات)
+npx prisma db seed
+
+# 6) شغّل التطوير
 npm run dev
 ```
 
-Open http://localhost:3000
+افتح المتصفح على: http://localhost:3000
 
-## Tech stack
+## تسجيل الدخول (OTP)
 
-| Concern | Choice |
+تسجيل الدخول يتم عبر رقم الجوال ورمز تحقق (OTP).
+**في وضع التطوير لا يُرسَل الرمز عبر SMS** — بل يُطبَع في الـ console الخاص بالخادم:
+
+```
+📱 [CampusWash OTP] phone=96891234567 code=123456
+```
+
+انسخ الرمز من سجل الخادم وأدخله في صفحة الدخول.
+
+### الحسابات التجريبية (بعد `db seed`)
+
+| الدور | رقم الجوال | الاسم |
+| --- | --- | --- |
+| طالب | `96891234567` | أحمد |
+| عامل | `96898765432` | سالم |
+| مشرف | `96899999999` | المشرف |
+
+> أي رقم جوال جديد (9–12 رقم) ينشئ حساباً جديداً ويُوجَّه لصفحة `/onboarding` لاختيار الاسم والدور.
+
+## أوامر مفيدة
+
+| الأمر | الوظيفة |
 | --- | --- |
-| Framework | Next.js 14 (App Router) |
-| Language | TypeScript (strict) |
-| Styling | Tailwind CSS + shadcn/ui |
-| Database | Prisma + SQLite (PostgreSQL-ready) |
-| Auth | NextAuth.js |
-| Charts | Recharts |
-| Icons | lucide-react |
-| Font | Tajawal (Google Fonts) |
-| Payments | Thawani + Tap |
-| Printing | node-thermal-printer (ESC/POS) |
-| Loyalty cards | passkit-generator (.pkpass) |
+| `npm run dev` | تشغيل خادم التطوير |
+| `npm run build` | بناء الإنتاج |
+| `npm run db:migrate` | إنشاء/تطبيق migrations |
+| `npm run db:seed` | تعبئة البيانات التجريبية |
+| `npm run db:studio` | فتح Prisma Studio |
+| `docker compose up -d` | تشغيل PostgreSQL محلياً |
+
+## بنية المشروع
+
+```
+app/
+  api/
+    auth/[...nextauth]/   # NextAuth handler
+    otp/                  # طلب رمز التحقق
+    onboarding/           # حفظ الاسم والدور
+  login/                  # صفحة تسجيل الدخول (هاتف → OTP)
+  onboarding/             # إكمال البيانات للمستخدم الجديد
+  student/                # صفحة الطالب (مؤقتة)
+  worker/                 # صفحة العامل (مؤقتة)
+  page.tsx                # الصفحة الرئيسية (Landing)
+components/
+  ui/                     # مكونات shadcn/ui
+  providers.tsx           # SessionProvider
+lib/
+  auth.ts                 # إعداد NextAuth + OTP
+  otp.ts                  # توليد/تخزين/إرسال OTP
+  prisma.ts               # Prisma client
+  validations.ts          # مخططات zod
+  translations/           # النصوص العربية (ar.ts) + placeholder إنجليزي
+prisma/
+  schema.prisma           # نماذج قاعدة البيانات
+  seed.ts                 # بيانات تجريبية
+types/
+  next-auth.d.ts          # توسعة أنواع الجلسة
+middleware.ts             # حماية المسارات حسب الدور
+```
+
+## ملاحظات تقنية
+
+- **تخزين OTP:** في المرحلة 1 يُخزَّن الرمز في الذاكرة (in-memory Map) لمدة 5 دقائق. هذا مناسب للتطوير فقط ولا يصلح للإنتاج (لا يصمد عبر إعادة التشغيل أو عدة خوادم). يجب استبداله بـ Redis/جدول قاعدة بيانات ومزوّد SMS فعلي في مرحلة لاحقة.
+- **الجلسة:** تستخدم استراتيجية JWT، ويُخزَّن فيها `userId` و`role` و`needsOnboarding`.
+- **حماية المسارات:** `middleware.ts` يحمي `/student/*` و`/worker/*` و`/admin/*` حسب الدور.
