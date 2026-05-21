@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { Tajawal } from "next/font/google";
 import "./globals.css";
+import { Providers } from "@/components/providers";
+import { Toaster } from "@/components/ui/toaster";
 
 const tajawal = Tajawal({
   subsets: ["arabic", "latin"],
@@ -10,8 +12,9 @@ const tajawal = Tajawal({
 });
 
 export const metadata: Metadata = {
-  title: "m4 coffee — نظام نقاط البيع",
-  description: "نظام إدارة m4 coffee — الطلبات والمخزون والولاء والمحاسبة",
+  title: "كامبس واش — غسيل سيارتك وانت في المحاضرة",
+  description:
+    "كامبس واش: خدمة غسيل سيارات متنقلة لطلاب الجامعة. اطلب الغسيل ونحن نوصله لموقفك.",
 };
 
 export default function RootLayout({
@@ -22,7 +25,8 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl" suppressHydrationWarning>
       <body className={`${tajawal.variable} font-sans`}>
-        {children}
+        <Providers>{children}</Providers>
+        <Toaster />
       </body>
     </html>
   );

@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: campuswash-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: campuswash
+      POSTGRES_PASSWORD: campuswash
+      POSTGRES_DB: campuswash
+    ports:
+      - "5432:5432"
+    volumes:
+      - campuswash_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U campuswash"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  campuswash_pgdata:
